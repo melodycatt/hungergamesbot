@@ -1,0 +1,87 @@
+[
+    {
+        "name": "Michael",
+        "rarity": 9,
+        "pack": "all"
+    },
+    {
+        "name": "Rose Toy",
+        "rarity": 3,
+        "pack": "all"
+    },
+    {
+        "name": "Pink Sparkly Dildo",
+        "rarity": 5,
+        "pack": "all"
+    },
+    {
+        "name": "Edward's Feet",
+        "rarity": 2,
+        "pack": "all"
+    },
+    {
+        "name": "Boobs",
+        "rarity": 10,
+        "pack": "all"
+    },
+    {
+        "name": "Chicken",
+        "rarity": 8,
+        "pack": "all"
+    },
+    {
+        "name": "Pumpkin",
+        "rarity": 5,
+        "pack": "halloween"
+    },
+    {
+        "name": "Ghost",
+        "rarity": 8,
+        "pack": "halloween"
+    },   
+    {
+        "name": "Zombie",
+        "rarity": 6,
+        "pack": "halloween"
+    }, 
+    {
+        "name": "Skeleton",
+        "rarity": 9,
+        "pack": "halloween"
+    },
+    {
+        "name": "Blood",
+        "rarity": 10,
+        "pack": "halloween"
+    },
+    {
+        "name": "Candy",
+        "rarity": 10,
+        "pack": "halloween"
+    },
+    {
+        "name": "Vampire",
+        "rarity": 3,
+        "pack": "halloween"
+    }, 
+    {
+        "name": "Bat",
+        "rarity": 4,
+        "pack": "halloween"
+    },
+    {
+        "name": "Darkness",
+        "rarity": 2,
+        "pack": "halloween"
+    },
+    {
+        "name": "Jack'o'lantern",
+        "rarity": 1,
+        "pack": "halloween"
+    },
+    {
+        "name": "Frankenstein",
+        "rarity": 0.1,
+        "pack": "halloween"
+    }
+]

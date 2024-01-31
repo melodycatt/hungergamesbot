@@ -1,0 +1,1 @@
+{"Packs":{"description":"Buy booster packs for cards", "items":[["all", 75, "Every card in one pack",{"type":"pack", "name":"all", "count":1}], ["halloween", 100, "Festive halloween booster pack", {"type":"pack", "name":"halloween", "count":1}]]}}
