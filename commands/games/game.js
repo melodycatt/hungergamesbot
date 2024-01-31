@@ -35,7 +35,21 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
             .setName("settings")
-            .setDescription("settings of your game"))
+            .setDescription("settings of your game")
+            .addStringOption(option =>
+                option.setName("setting")
+                .setDescription('Setting to change')
+                .addChoices(
+                    { name: 'map_size', value: 'map_size' },
+                    { name: 'map_height', value: 'map_height' },
+                    { name: 'map_moisture', value: 'map_moisture' },
+                    { name: 'map_heightfreq', value: 'map_heightfreq' },
+                    { name: 'map_moistfreq', value: 'map_moistfreq' },
+                ))
+            .addNumberOption(option =>
+                option.setName("value")
+                .setDescription("Value to set")))
+            
         ,
 	async execute(interaction) {
         if (interaction.options.getSubcommand() === "create") {
@@ -59,7 +73,6 @@ module.exports = {
                     await interaction.reply('That person isnt hosting a game')
                     return
                 }
-                if (!game.checkExpired()) game.expired = true
                 let players = ''
                 for (let i of game.players) {
                     players = players + `${i.name} ${i.discord && i.name != i.discord.username ? `(${i.discord.username})`: ''}\n`
@@ -76,11 +89,11 @@ module.exports = {
             } else {
                 try {
                     var game = JSON.parse(data[interaction.user.id])
+                    console.log(game)
                 } catch {
                     await interaction.reply('You aren\'t hosting a game')
                     return
                 }
-                if (!game.checkExpired()) game.expired = true
                 let players = ''
                 for (let i of game.players) {
                     players = players + `${i.name} ${i.discord && i.name != i.discord.username ? `(${i.discord.username})`: ''}\n`
@@ -97,7 +110,6 @@ module.exports = {
             }
         } else if (interaction.options.getSubcommand() === "join") {
             var game = JSON.parse(data[interaction.options.getUser("host").id])
-            if (!game.checkExpired()) game.expired = true
             if (game.players.map(x => x.discord.id).includes(interaction.user.id)) {
                 await interaction.reply('go away ur already in the game')
                 return
@@ -109,35 +121,57 @@ module.exports = {
             await sleep(500)
             await interaction.followUp('go away')
         } else if (interaction.options.getSubcommand() === "settings") {
+            option = interaction.options.getString("setting")
+            value = interaction.options.getNumber("value")
             var game = JSON.parse(data[interaction.user.id])
-            const embed = new EmbedBuilder()
-                .setTitle(`${game.name} - Settings`)
-                .setDescription('Run this command with the setting you want to change and the value you want to set it to.\n\n\`map_size\` - change the size of the game\'s map\n\`map_height\` - average height of the map (lower value = higher map)\n\`map_height\` - average moistness of the map (lower value = moister map)\n\`map_heightfreq\` - how chaotic the height of the map is (lower value = spikier terrain)\n\`map_moistfreq\` - how chaotic the moistness of the map is (lower value = spikier moistness)\n')
-            await interaction.reply({embeds: [embed]})
+            if(option) {
+                if (option == "map_size") {
+                    if (value < 16 || value > 256 || Math.round(value) != value ) {
+                        await interaction.reply({content: `Please input an integer in between 16 and 256`, ephemeral: true})
+                    }
+                    game.settings.map.size = value;
+                    await interaction.reply(`Changed the \`map_size\` to ${value}`)
+                }
+                else if (option == "map_height") {
+                    if (value < 0.1 || value > 3) {
+                        await interaction.reply({content: `Please input a value in between 0.1 and 3`, ephemeral: true})
+                    }
+                    game.settings.map.height = value;
+                    await interaction.reply(`Changed the \`map_height\` to ${value}`)
+                }
+                else if (option == "map_moisture") {
+                    if (value < 0.1 || value > 3) {
+                        await interaction.reply({content: `Please input a value in between 0.1 and 3`, ephemeral: true})
+                    }
+                    game.settings.map.moist = value;
+                    await interaction.reply(`Changed the \`map_moisture\` to ${value}`)
+                }
+                else if (option == "map_heightfreq") {
+                    if (value < 0.1 || value > 2) {
+                        await interaction.reply({content: `Please input a value in between 0.1 and 2`, ephemeral: true})
+                    }
+                    game.settings.map.heightf = value;
+                    await interaction.reply(`Changed the \`map_heightfreq\` to ${value}`)
+                }
+                else if (option == "map_moistfreq") {
+                    if (value < 0.1 || value > 2) {
+                        await interaction.reply({content: `Please input a value in between 0.1 and 2`, ephemeral: true})
+                    }
+                    game.settings.map.moistf = value;
+                    await interaction.reply(`Changed the \`map_moistfreq\` to ${value}`)
+                }
+                game.genMap()
+                data[interaction.user.id] = JSON.stringify(game)
+                fs.writeFileSync(path.join(__dirname, 'data/data.json'), JSON.stringify(data));            
+            } else {
+                const embed = new EmbedBuilder()
+                    .setTitle(`${game.name} - Settings`)
+                    .setDescription('Run this command again with the setting you want to change and the value you want to set it to.\n\n\`map_size\` - change the size of the game\'s map\n\`map_height\` - average height of the map (lower value = higher map)\n\`map_moisture\` - average moistness of the map (lower value = moister map)\n\`map_heightfreq\` - how chaotic the height of the map is (lower value = spikier terrain)\n\`map_moistfreq\` - how chaotic the moistness of the map is (lower value = spikier moistness)\n')
+                await interaction.reply({embeds: [embed]})
+            }
         }
 	},
 };
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-/*
-const exampleEmbed = new EmbedBuilder()
-	.setColor(0x0099FF)
-	.setTitle('Some title')
-	.setURL('https://discord.js.org/')
-	.setAuthor({ name: 'Some name', iconURL: 'https://i.imgur.com/AfFp7pu.png', url: 'https://discord.js.org' })
-	.setDescription('Some description here')
-	.setThumbnail('https://i.imgur.com/AfFp7pu.png')
-	.addFields(
-		{ name: 'Regular field title', value: 'Some value here' },
-		{ name: '\u200B', value: '\u200B' },
-		{ name: 'Inline field title', value: 'Some value here', inline: true },
-		{ name: 'Inline field title', value: 'Some value here', inline: true },
-	)
-	.addFields({ name: 'Inline field title', value: 'Some value here', inline: true })
-	.setImage('https://i.imgur.com/AfFp7pu.png')
-	.setTimestamp()
-	.setFooter({ text: 'Some footer text here', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
-
-channel.send({ embeds: [exampleEmbed] });
-*/

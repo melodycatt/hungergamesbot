@@ -84,7 +84,7 @@ class Player {
         this.name = name
         this.image = image
         this.discord = discord
-        this.game = data[game]
+        this.game = game
     }
     //move around the map
     calcMovement() {
