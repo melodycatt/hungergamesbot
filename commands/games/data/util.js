@@ -13,11 +13,23 @@ const game = {
 
 class Game {
     expired = false;
-    players;
+    started = false;
+    players = [];
+    settings = {
+        map: {
+            size: 32,
+            moist: 1.2,
+            height: 1.4,
+            moistf: 1,
+            heightf: 1
+        }
+    }
     constructor(owner, name) {
+        console.log(name, name ?? `${owner.username}'s Hunger Games`)
         this.owner = owner
         this.name = name ?? `${owner.username}'s Hunger Games`
         this.expiry = Date.now() + 300000
+
     }
 
     checkExpired() {
@@ -29,37 +41,31 @@ class Game {
         }
     }
 
-    async genMap(height, moist, heightf, moistf, size) {
+    async genMap() {
         const generator = new NoiseMap.MapGenerator(config={generateSeed: true});
-        height = height ?? 1.4
-        moist = moist ?? 1.2
-        heightf = heightf ?? 1
-        moistf = moistf ?? 1
-        size = size ?? 32
      
-        const heightm = generator.createMap(size, size, {type: 'simplex', frequency: heightf, amplitude: 1, generateSeed: true})
+        const heightm = generator.createMap(this.settings.map.size, this.settings.map.size, {type: 'simplex', frequency: this.settings.map.heightf, amplitude: 1, generateSeed: true})
         for (let y = 0; y < heightm.height; y++) {
            for (let x = 0; x < heightm.width; x++) {
-              heightm.set(x, y, Math.pow(heightm.get(x, y), height))
+              heightm.set(x, y, Math.pow(heightm.get(x, y), this.settings.map.height))
            }   
         }
      
-        const moisture = generator.createMap(size, size, {type: 'simplex', frequency: moistf, amplitude: 1, generateSeed: true})
+        const moisture = generator.createMap(this.settings.map.size, this.settings.map.size, {type: 'simplex', frequency: this.settings.map.moistf, amplitude: 1, generateSeed: true})
         for (let y = 0; y < moisture.height; y++) {
            for (let x = 0; x < moisture.width; x++) {
-              moisture.set(x, y, Math.pow(moisture.get(x, y), moist))
+              moisture.set(x, y, Math.pow(moisture.get(x, y), this.settings.map.moist))
            }   
         }
         
-        const mainmap = new hgMap(size, size, heightm, moisture);     
+        const mainmap = new hgMap(this.settings.map.size, this.settings.map.size, heightm, moisture);     
         mainmap.generate();    
   
-        const canvas = Canvas.createCanvas(size * 4, size * 4);
+        const canvas = Canvas.createCanvas(this.settings.map.size * 4, this.settings.map.size * 4);
         const ctx = canvas.getContext('2d');
-        mainmap.drawMap(ctx, size * 4, size * 4)
+        mainmap.drawMap(ctx, this.settings.map.size * 4, this.settings.map.size * 4)
         this.image = await canvas.encode('png')
         this.map = mainmap
-
     }
 }
 
@@ -74,9 +80,10 @@ class Player {
     }
     inventory = []
     position = {x: 0, y: 0, biome: null}
-    constructor(name, image, game) {
+    constructor(name, image, game, discord) {
         this.name = name
         this.image = image
+        this.discord = discord
         this.game = data[game]
     }
     //move around the map
