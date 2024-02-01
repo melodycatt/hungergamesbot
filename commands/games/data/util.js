@@ -1,7 +1,8 @@
-const data = require('./data.json')
 const NoiseMap = require('noise-map')
 const Canvas = require('@napi-rs/canvas');
 const { isMainThread } = require('worker_threads');
+const fs = require('node:fs');
+const path = require('node:path');
 
 class Game {
     expired = false;
@@ -18,12 +19,13 @@ class Game {
         }
     }
     constructor(owner, name) {
+		console.log(owner)
         console.log(name, name ?? `${owner.username}'s Hunger Games`)
         this.owner = owner
         this.name = name ?? `${owner.username}'s Hunger Games`
         this.expiry = Date.now() + 300000
-
     }
+
 
     checkExpired() {
         if(this.expired) return false
@@ -61,26 +63,43 @@ class Game {
         this.map = mainmap
     }
 
-    round() {
-        let playersLeft = [...this.players];
-
-        if (this.round === 0) {
-            for (let i of playersLeft) {
+    nextround() {
+        if (this.roundNo === 0) {
+			let result = []
+            for (let i in this.players) {
+				console.log("1");
+				console.log(result)
                 let actionChance = 1
-                while (Math.random() > actionChance) {
-                    i.generateAction()
+                while (Math.random() <= actionChance) {
+                    result.push(this.players[i].newAction(this.players.length))
+					console.log(this.players[i].status, this.players[i].inventory)
                     actionChance *= 0.6
                 }
-
-                playersLeft.shift()
             }
+			return result
         }
+
     }
+
+	static toGame(obj) {
+		console.log(obj, obj.owner)
+		let result = new Game(obj.owner, obj.name)
+		result.expiry = Date.now() + 300000
+		result.expired = obj.expired
+		result.started = obj.started
+		result.settings = obj.settings
+		result.players = obj.players
+		for (let i in result.players) {
+			result.players[i] = Player.toPlayer(result.players[i])
+		}
+		result.roundNo = obj.roundNo
+		return result
+	}
 
     get round() {
         if (this.roundNo === 0) return "Bloodbath"
-        if (this.roundNo % 2) return `Day ${Math.ceil(this.round / 2)}`
-        else return `Night ${this.round / 2}`
+        if (this.roundNo % 2) return `Day ${Math.ceil(this.roundNo / 2)}`
+        else return `Night ${this.roundNo / 2}`
     }
 }
 
@@ -91,16 +110,33 @@ class Player {
             damage: 0,
             participants: 1,
             items: {
-                required: null,
-                gained: null,
-                lost: null
+                required: [{name:"poo", count:1}],
+                gained: [],
+                lost: [{name:"poo", count:1}],
+            },
+            status: {
+                hunger: 1,
+                thirst: 1
+            },
+            weight: 1,
+            roundValidation: /.*/
+        }, 
+        {
+            text: 'player1 placeholder 2 (electric boogaloo)',
+            damage: 10,
+            participants: 1,
+            items: {
+                required: [],
+                gained: [{name:"poo", count:2}],
+                lost: []
             },
             status: {
                 hunger: 0,
-                health: 0
+                thirst: 0
             },
-            weight: 1
-        }
+            weight: 1,
+            roundValidation: /.*/
+        }, 
     ]
     district;
     index;
@@ -116,12 +152,87 @@ class Player {
         this.name = name
         this.image = image
         this.discord = discord
-        this.game = game
+        this.gameID = game
+    }
+    get items() {
+        return this.inventory.map(x => {return {name: x.name, count: x.count}})
+    }
+    newAction(players, round) {
+		const data = require('./data.json')
+		console.log("\n\n\n\n\n\n", data, typeof data, data[this.gameID], typeof data[this.gameID], "\n\n\n\n\n\n")
+        let game = Game.toGame(JSON.parse(data[this.gameID]))
+		const index = game.players.indexOf(this)
+		console.log(data, game, game.players, index, typeof index)
+        let legalActions = []
+        for(let i of Player.ACTIONS) {
+			console.log(1)
+            if (i.participants > players) continue
+			console.log(2)
+            if (!itemsSubset(this.items, i.items.required)) continue
+			console.log(3)
+            if (!i.roundValidation.test(game.round)) continue
+			console.log(4)
+            legalActions.push(i)    
+        }
+        let action = legalActions[Math.round(Math.random() * (legalActions.length - 1))]
+        legalActions = []
+        if(action.participants > 1) {
+            let others = []
+            for(let i = 0; i < action.participants; i++) {
+                others.push(game.players[Math.round(Math.random() * (game.players.length - 1))])
+            }
+            for (let i of others) {
+                i.status.health -= action.damage
+        	    i.status.hunger += action.status.hunger
+                i.status.thirst += action.status.thirst
+				if (i.status.health <= 0) {
+					i.status.health = 0
+					game.players.splice(game.players[game.players.indexOf(i)], 1)					
+				}
+            }    
+            this.status.hunger += action.status.hunger
+            this.status.thirst += action.status.thirst    
+        } else {
+			this.status.health -= action.damage
+			this.status.hunger += action.status.hunger
+			this.status.thirst += action.status.thirst
+			if (this.status.health <= 0) {
+				this.status.health = 0
+				game.players.splice(game.players[game.players.indexOf(this)], 1)					
+			}
+		}
+        for(let i of action.items.gained) {
+            if(this.items.map(x => x.name).includes(i.name)) {
+                this.inventory[this.items.map(x => x.name).indexOf(i.name)].count += i.count
+            } else {
+				this.inventory.push(i)
+            }
+        }
+        for(let i of action.items.lost) {
+            this.inventory[this.items.map(x => x.name).indexOf(i.name)].count -= i.count
+            if (this.inventory[this.items.map(x => x.name).indexOf(i.name)].count === 0) {
+                this.inventory.splice(this.items.map(x => x.name).indexOf(i.name), 1)
+            }
+        }
+		game.players[index] = this
+		data[this.gameID] = JSON.stringify(game)
+		console.log(data, game, this)
+		fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(data));            
+		return action.text
     }
     //move around the map
     calcMovement() {
 
     }
+	static toPlayer(obj) {
+		let result = new Player(obj.name, obj.image, obj.gameID, obj.discord)
+		result.inventory = obj.inventory
+		result.status = obj.status
+		result.district = obj.district
+		result.index = obj.index
+		result.position = obj.position
+		return result
+	}
     move(x, y) {
         if (map(this.position.x)) {
 
@@ -244,6 +355,19 @@ class hgMap {
 function scale(x, oldMin, oldMax, newMin, newMax) {
    return newMin + (newMax - newMin) * (x - oldMin) / (oldMax - oldMin);
 }
+
+function itemsSubset(a, b) {
+    let anames = a.map(x => x.name)
+    let bnames = b.map(x => x.name)
+    const result1 = bnames.every(val => anames.includes(val));
+	if(!result1) {
+		return false
+	}
+    const result2 = b.every(val => val.count >= a[anames.indexOf(val.name)].count);
+	console.log(result1, result2)
+    return result1 && result2
+}
+
 module.exports = {
     Game: Game,
     Player: Player

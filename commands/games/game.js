@@ -1,9 +1,7 @@
 const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
-const data = require('./data/data.json')
 const {Game, Player} = require('./data/util.js');
 const fs = require('node:fs');
 const path = require('node:path');
-console.log(Game, "hd")
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -49,9 +47,19 @@ module.exports = {
             .addNumberOption(option =>
                 option.setName("value")
                 .setDescription("Value to set")))
-            
+        .addSubcommand(subcommand =>
+            subcommand
+            .setName('round')
+            .setDescription('poo'))
+        .addSubcommand(subcommand =>
+            subcommand
+            .setName('delete')
+            .setDescription('Delete your game'))
+
         ,
 	async execute(interaction) {
+        const data = require('./data/data.json')
+        console.log(data, typeof data, "hd")    
         if (interaction.options.getSubcommand() === "create") {
             const game = new Game(interaction.user, interaction.options.getString('name'))
             await game.genMap()
@@ -64,7 +72,7 @@ module.exports = {
         } else if (interaction.options.getSubcommand() === "view") {
             if (interaction.options.getUser('host')) {
                 try {
-                    var game = JSON.parse(data[interaction.options.getUser("host").id])
+                    var game = Game.toGame(JSON.parse(data[interaction.options.getUser("host").id]))
                 } catch {
                     if (game.host.username == interaction.user.id) {
                         await interaction.reply('You aren\'t hosting a game')
@@ -81,14 +89,14 @@ module.exports = {
                 console.log(players ?? 'No players', players >= 1 ? players : 'No players')
                 const embed = new EmbedBuilder()
                     .setTitle(game.name)
-                    .setDescription(`Hosted by ${interaction.options.getUser("host").id} | ${game.started ? 'Started' : 'Not Started'}`)
+                    .setDescription(`Hosted by ${interaction.options.getUser("host").username} | ${game.started ? 'Started' : 'Not Started'}`)
                     .setThumbnail(`${interaction.options.getUser("host").avatarURL()}`)
                     .setImage('attachment://map.png')
                     .addFields({name: 'Players', value: players.length >= 1 ? players : 'No players'})
                 interaction.reply({embeds: [embed]})
             } else {
                 try {
-                    var game = JSON.parse(data[interaction.user.id])
+                    var game = Game.toGame(JSON.parse(data[interaction.user.id]))
                     console.log(game)
                 } catch {
                     await interaction.reply('You aren\'t hosting a game')
@@ -109,7 +117,7 @@ module.exports = {
                 interaction.reply({embeds: [embed]})
             }
         } else if (interaction.options.getSubcommand() === "join") {
-            var game = JSON.parse(data[interaction.options.getUser("host").id])
+            var game = Game.toGame(JSON.parse(data[interaction.options.getUser("host").id]))
             if (game.players.map(x => x.discord.id).includes(interaction.user.id)) {
                 await interaction.reply('go away ur already in the game')
                 return
@@ -123,7 +131,7 @@ module.exports = {
         } else if (interaction.options.getSubcommand() === "settings") {
             option = interaction.options.getString("setting")
             value = interaction.options.getNumber("value")
-            var game = JSON.parse(data[interaction.user.id])
+            var game = Game.toGame(JSON.parse(data[interaction.user.id]))
             if(option) {
                 if (option == "map_size") {
                     if (value < 16 || value > 256 || Math.round(value) != value ) {
@@ -169,9 +177,25 @@ module.exports = {
                     .setDescription('Run this command again with the setting you want to change and the value you want to set it to.\n\n\`map_size\` - change the size of the game\'s map\n\`map_height\` - average height of the map (lower value = higher map)\n\`map_moisture\` - average moistness of the map (lower value = moister map)\n\`map_heightfreq\` - how chaotic the height of the map is (lower value = spikier terrain)\n\`map_moistfreq\` - how chaotic the moistness of the map is (lower value = spikier moistness)\n')
                 await interaction.reply({embeds: [embed]})
             }
-        } else if (interaction.options.getSubcommand() === "settings") {
-            
-        }
+        } else if (interaction.options.getSubcommand() === "round") {
+            console.log(JSON.parse(data[interaction.user.id]))
+            var game = Game.toGame(JSON.parse(data[interaction.user.id]))
+            console.log(game)
+            let t = game.nextround()
+            await interaction.reply('go check the console')
+            for (let i of t) {
+                await interaction.channel.send(i)
+            }
+        } else if (interaction.options.getSubcommand() === "delete") {
+            if( data[interaction.user.id] ) {
+                delete data[interaction.user.id]
+                fs.writeFileSync(path.join(__dirname, 'data/data.json'), JSON.stringify(data));            
+                await interaction.reply('Deleted!') 
+                return
+            } else {
+                await interaction.reply('You have no open game!')   
+            }
+        } 
 	},
 };
 
