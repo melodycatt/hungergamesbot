@@ -169,6 +169,8 @@ module.exports = {
                     .setDescription('Run this command again with the setting you want to change and the value you want to set it to.\n\n\`map_size\` - change the size of the game\'s map\n\`map_height\` - average height of the map (lower value = higher map)\n\`map_moisture\` - average moistness of the map (lower value = moister map)\n\`map_heightfreq\` - how chaotic the height of the map is (lower value = spikier terrain)\n\`map_moistfreq\` - how chaotic the moistness of the map is (lower value = spikier moistness)\n')
                 await interaction.reply({embeds: [embed]})
             }
+        } else if (interaction.options.getSubcommand() === "settings") {
+            
         }
 	},
 };

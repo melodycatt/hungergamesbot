@@ -1,20 +1,13 @@
 const data = require('./data.json')
 const NoiseMap = require('noise-map')
 const Canvas = require('@napi-rs/canvas');
-
-
-const game = {
-    players: [],
-    owner: '',
-    expiry: 0,
-    name: '',
-    map: {}
-}
+const { isMainThread } = require('worker_threads');
 
 class Game {
     expired = false;
     started = false;
     players = [];
+    roundNo = 0
     settings = {
         map: {
             size: 32,
@@ -67,9 +60,48 @@ class Game {
         this.image = await canvas.encode('png')
         this.map = mainmap
     }
+
+    round() {
+        let playersLeft = [...this.players];
+
+        if (this.round === 0) {
+            for (let i of playersLeft) {
+                let actionChance = 1
+                while (Math.random() > actionChance) {
+                    i.generateAction()
+                    actionChance *= 0.6
+                }
+
+                playersLeft.shift()
+            }
+        }
+    }
+
+    get round() {
+        if (this.roundNo === 0) return "Bloodbath"
+        if (this.roundNo % 2) return `Day ${Math.ceil(this.round / 2)}`
+        else return `Night ${this.round / 2}`
+    }
 }
 
 class Player {
+    static ACTIONS = [
+        {
+            text: 'player1 placeholder',
+            damage: 0,
+            participants: 1,
+            items: {
+                required: null,
+                gained: null,
+                lost: null
+            },
+            status: {
+                hunger: 0,
+                health: 0
+            },
+            weight: 1
+        }
+    ]
     district;
     index;
     status = {
