@@ -3,6 +3,7 @@ const Canvas = require('@napi-rs/canvas');
 const { isMainThread } = require('worker_threads');
 const fs = require('node:fs');
 const path = require('node:path');
+const chalk = import('chalk')
 
 class Game {
     expired = false;
@@ -19,8 +20,6 @@ class Game {
         }
     }
     constructor(owner, name) {
-		console.log(owner)
-        console.log(name, name ?? `${owner.username}'s Hunger Games`)
         this.owner = owner
         this.name = name ?? `${owner.username}'s Hunger Games`
         this.expiry = Date.now() + 300000
@@ -67,11 +66,12 @@ class Game {
         if (this.roundNo === 0) {
 			let result = []
             for (let i in this.players) {
-				console.log("1");
-				console.log(result)
                 let actionChance = 1
                 while (Math.random() <= actionChance) {
                     result.push(this.players[i].newAction(this.players.length))
+                    for(let j in result[result.length - 1][3]) {
+                        this.players.splice(this.players.map(obj => obj.discord.id).indexOf(j), 1)
+                    }
 					console.log(this.players[i].status, this.players[i].inventory)
                     actionChance *= 0.6
                 }
@@ -82,13 +82,15 @@ class Game {
     }
 
 	static toGame(obj) {
-		console.log(obj, obj.owner)
 		let result = new Game(obj.owner, obj.name)
 		result.expiry = Date.now() + 300000
 		result.expired = obj.expired
 		result.started = obj.started
 		result.settings = obj.settings
 		result.players = obj.players
+        result.map = obj.map
+        result.image = obj.image
+        result.roundNo = obj.roundNo
 		for (let i in result.players) {
 			result.players[i] = Player.toPlayer(result.players[i])
 		}
@@ -148,6 +150,7 @@ class Player {
     }
     inventory = []
     position = {x: 0, y: 0, biome: null}
+    roundActions = [];
     constructor(name, image, game, discord) {
         this.name = name
         this.image = image
@@ -159,22 +162,20 @@ class Player {
     }
     newAction(players, round) {
 		const data = require('./data.json')
-		console.log("\n\n\n\n\n\n", data, typeof data, data[this.gameID], typeof data[this.gameID], "\n\n\n\n\n\n")
         let game = Game.toGame(JSON.parse(data[this.gameID]))
-		const index = game.players.indexOf(this)
-		console.log(data, game, game.players, index, typeof index)
+		const index = game.players.findIndex(obj => obj.discord.id == this.discord.id)
         let legalActions = []
+        let THEDEAD = []
         for(let i of Player.ACTIONS) {
-			console.log(1)
             if (i.participants > players) continue
 			console.log(2)
             if (!itemsSubset(this.items, i.items.required)) continue
-			console.log(3)
             if (!i.roundValidation.test(game.round)) continue
-			console.log(4)
             legalActions.push(i)    
         }
         let action = legalActions[Math.round(Math.random() * (legalActions.length - 1))]
+        let actionText = `${action.text} ${action.items.gained.length ? `+ ${action.items.gained.map(obj => `${obj.count} ${obj.name}(s)`).toString()}`: ''}${action.items.lost.length ? ` | - ${action.items.lost.map(obj => `${obj.count} ${obj.name}(s)`).toString()}`: ''}`
+        this.roundActions.push(actionText)
         legalActions = []
         if(action.participants > 1) {
             let others = []
@@ -182,13 +183,13 @@ class Player {
                 others.push(game.players[Math.round(Math.random() * (game.players.length - 1))])
             }
             for (let i of others) {
+                if (i.status.health - action.damage == 0) {
+                    game.players.splice(game.players[game.players.findIndex(obj => obj.discord.id == i.discord.id)], 1)		
+                    THEDEAD.push(i.discord.id)			
+                }
                 i.status.health -= action.damage
         	    i.status.hunger += action.status.hunger
                 i.status.thirst += action.status.thirst
-				if (i.status.health <= 0) {
-					i.status.health = 0
-					game.players.splice(game.players[game.players.indexOf(i)], 1)					
-				}
             }    
             this.status.hunger += action.status.hunger
             this.status.thirst += action.status.thirst    
@@ -198,14 +199,21 @@ class Player {
 			this.status.thirst += action.status.thirst
 			if (this.status.health <= 0) {
 				this.status.health = 0
-				game.players.splice(game.players[game.players.indexOf(this)], 1)					
+                console.log(index)
+                console.log(game.players)			
+				game.players.splice(index, 1)		
+                console.log(game.players)	
+                THEDEAD.push(this.discord.id)
+                data[this.gameID] = JSON.stringify(game)
+                fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(data));            
+                return [action.text, this.status, JSON.parse(JSON.stringify(this.inventory))]                
 			}
 		}
         for(let i of action.items.gained) {
             if(this.items.map(x => x.name).includes(i.name)) {
                 this.inventory[this.items.map(x => x.name).indexOf(i.name)].count += i.count
             } else {
-				this.inventory.push(i)
+				this.inventory.push(JSON.parse(JSON.stringify(i)))
             }
         }
         for(let i of action.items.lost) {
@@ -214,11 +222,10 @@ class Player {
                 this.inventory.splice(this.items.map(x => x.name).indexOf(i.name), 1)
             }
         }
-		game.players[index] = this
+		game.players[index] = Player.toPlayer(JSON.parse(JSON.stringify(this)))
 		data[this.gameID] = JSON.stringify(game)
-		console.log(data, game, this)
 		fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(data));            
-		return action.text
+		return [actionText, this.status, JSON.parse(JSON.stringify(this.inventory)), THEDEAD, this.discord.username, "DEATH!!!!!"]
     }
     //move around the map
     calcMovement() {
@@ -262,7 +269,6 @@ class hgMap {
     }
 
     constructor(width, height, heightm, moisture) {
-        console.log(width, height, heightm, moisture);
         this.heightm = heightm
         this.moisture = moisture
         this.width = width;
@@ -359,11 +365,12 @@ function scale(x, oldMin, oldMax, newMin, newMax) {
 function itemsSubset(a, b) {
     let anames = a.map(x => x.name)
     let bnames = b.map(x => x.name)
+    console.log(anames, bnames, a, b)
     const result1 = bnames.every(val => anames.includes(val));
 	if(!result1) {
 		return false
 	}
-    const result2 = b.every(val => val.count >= a[anames.indexOf(val.name)].count);
+    const result2 = b.every(val => val.count <= a[anames.indexOf(val.name)].count);
 	console.log(result1, result2)
     return result1 && result2
 }

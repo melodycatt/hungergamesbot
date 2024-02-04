@@ -178,13 +178,23 @@ module.exports = {
                 await interaction.reply({embeds: [embed]})
             }
         } else if (interaction.options.getSubcommand() === "round") {
-            console.log(JSON.parse(data[interaction.user.id]))
-            var game = Game.toGame(JSON.parse(data[interaction.user.id]))
-            console.log(game)
-            let t = game.nextround()
-            await interaction.reply('go check the console')
-            for (let i of t) {
-                await interaction.channel.send(i)
+            try{
+                console.log(JSON.parse(data[interaction.user.id]))
+                var game = Game.toGame(JSON.parse(data[interaction.user.id]))
+                console.log(game)
+                let t = game.nextround()
+                await interaction.reply(`Players: \`\`\`${JSON.stringify(game.players)}\`\`\``)
+                for (let i of t) {
+                    await interaction.channel.send(`${i[4]}: ${i[0]}`)
+                }
+            } catch (e) {
+                await interaction.channel.send(e.toString())
+                if (!(e instanceof Error)) {
+                    await interaction.channel.send('triggered')
+                    e = new Error(e);
+                }
+                await interaction.reply(`//Gotcha!\n \`\`\`${e.message}\n${e.cause}\n${e.lineNumber}:${e.columnNumber}\`\`\`\nInfo: user: \`${interaction.user.id}\`\nPlayer data: \`\`\`${JSON.stringify(game.players)}\`\`\``)
+                throw e
             }
         } else if (interaction.options.getSubcommand() === "delete") {
             if( data[interaction.user.id] ) {
