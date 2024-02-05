@@ -50,8 +50,9 @@ module.exports = {
 	async execute(interaction) {
         const data = require('./data/data.json')
         const game = Game.toGame(JSON.parse(data[interaction.options.getUser("host").id]))
-        const player = game.players[game.players.map(obj => obj.discord.username).indexOf(interaction.options.getString('player_name'))]
-        const embed = new EmbedBuilder()
+        const player = Player.toPlayer(game.players[game.players.map(obj => obj.discord.username).indexOf(interaction.options.getString('player_name'))])
+        console.log(player, player.roundActions)
+        var embed = new EmbedBuilder()
             .setTitle(player.discord.username)
             .setDescription(`Game: ${game.name} (Host: ${game.owner.username})\n\n__**Status:**__\n**Health:** ${player.status.health}/100\n**Hunger:** ${player.status.hunger}\n**Thirst:** ${player.status.thirst}`)
             .setThumbnail(player.image)
@@ -68,9 +69,18 @@ module.exports = {
             .setCustomId('status')
             .setLabel('Status')
             .setStyle(ButtonStyle.Primary)
+        const next = new ButtonBuilder()
+            .setCustomId('next')
+            .setLabel('>')
+            .setStyle(ButtonStyle.Primary)
+        const prev = new ButtonBuilder()
+            .setCustomId('prev')
+            .setLabel('<')
+            .setStyle(ButtonStyle.Primary)
         const srow = new ActionRowBuilder().addComponents(inventory, actions)
         const irow = new ActionRowBuilder().addComponents(status, actions)
         const arow = new ActionRowBuilder().addComponents(status, inventory)
+        const crow = new ActionRowBuilder().addComponents(prev, next)
 
         if(interaction.options.getSubcommand() === "view") {
             var response = await interaction.reply({
@@ -80,23 +90,68 @@ module.exports = {
             
             const collectorFilter = i => i.user.id === interaction.user.id;
             let active = true
-
+            let actionI = 0
             try {
                 while(active) {
                     const confirmation = await response.awaitMessageComponent({ filter: collectorFilter, time: 60_000 });
+                    console.log(actionI)
                     if (confirmation.customId === 'inventory') {
-                        response = await interaction.reply({
+                        response = await confirmation.update({
                             embeds: [embed],
                             components: [irow],
                         });
                     } else if (confirmation.customId === 'actions') {
+                        let action = player.roundActions[actionI]
+                        console.log(action.damage, action.damage? true: false)
+                        embed = new EmbedBuilder()
+                            .setTitle(`${player.discord.username}`)
+                            .setDescription(`Action ${actionI + 1}/${player.roundActions.length}`)
+                            .setThumbnail(player.image)
+                            .addFields({'name': player.roundActions[actionI].text, 'value': `${action.status.hunger ? `${action.status.hunger > 0 ? '+' : ''}${action.status.hunger} Hunger\n`: ''}${action.status.thirst ? `${action.status.thirst > 0 ? '+' : ''}${action.status.thirst} Thirst\n`: ''}${action.damage ? `${action.damage / -1 > 0 ? '+' : '-'}${Math.abs(action.damage)} Health\n`: ''}${action.items.gained.length ? `+ ${action.items.gained.map(obj => `${obj.count} ${obj.name}(s)`).toString()}\n`: ''}${action.items.lost.length ? ` | - ${action.items.lost.map(obj => `${obj.count} ${obj.name}(s)`).toString()}\n`: ''}`})
                         response = await confirmation.update({
                             embeds: [embed],
-                            components: [arow],
+                            components: [arow, crow],
+                        });
+                    } else if (confirmation.customId === 'status') {
+                        var embed = new EmbedBuilder()
+                            .setTitle(player.discord.username)
+                            .setDescription(`Game: ${game.name} (Host: ${game.owner.username})\n\n__**Status:**__\n**Health:** ${player.status.health}/100\n**Hunger:** ${player.status.hunger}\n**Thirst:** ${player.status.thirst}`)
+                            .setThumbnail(player.image)            
+                        response = await confirmation.update({
+                            embeds: [embed],
+                            components: [srow],
+                        });
+                    } else if (confirmation.customId === 'next') {
+                        console.log("pre add", player.roundActions.length, actionI + 1, (actionI + 1) % player.roundActions.length)
+                        actionI = (actionI + 1) % player.roundActions.length ? actionI + 1 : 0
+                        let action = player.roundActions[actionI]
+                        console.log(action.damage, action.damage? true: false)
+                        embed = new EmbedBuilder()
+                            .setTitle(`${player.discord.username}`)
+                            .setDescription(`Action ${actionI + 1}/${player.roundActions.length}`)
+                            .setThumbnail(player.image)
+                            .addFields({'name': player.roundActions[actionI].text, 'value': `${action.status.hunger ? `${action.status.hunger > 0 ? '+' : ''}${action.status.hunger} Hunger\n`: ''}${action.status.thirst ? `${action.status.thirst > 0 ? '+' : ''}${action.status.thirst} Thirst\n`: ''}${action.damage ? `${action.damage / -1 > 0 ? '+' : '-'}${Math.abs(action.damage)} Health\n`: ''}${action.items.gained.length ? `+ ${action.items.gained.map(obj => `${obj.count} ${obj.name}(s)`).toString()}\n`: ''}${action.items.lost.length ? ` | - ${action.items.lost.map(obj => `${obj.count} ${obj.name}(s)`).toString()}\n`: ''}`})
+                        response = await confirmation.update({
+                            embeds: [embed],
+                            components: [arow, crow],
+                        });
+                    } else if (confirmation.customId === 'prev') {
+                        actionI = actionI - 1 >= 0 ? actionI - 1 : (player.roundActions.length - 1)
+                        let action = player.roundActions[actionI]
+                        console.log(action.damage, action.damage? true: false)
+                        embed = new EmbedBuilder()
+                            .setTitle(`${player.discord.username}`)
+                            .setDescription(`Action ${actionI + 1}/${player.roundActions.length}`)
+                            .setThumbnail(player.image)
+                            .addFields({'name': player.roundActions[actionI].text, 'value': `${action.status.hunger ? `${action.status.hunger > 0 ? '+' : ''}${action.status.hunger} Hunger\n`: ''}${action.status.thirst ? `${action.status.thirst > 0 ? '+' : ''}${action.status.thirst} Thirst\n`: ''}${action.damage ? `${action.damage / -1 > 0 ? '+' : '-'}${Math.abs(action.damage)} Health\n`: ''}${action.items.gained.length ? `+ ${action.items.gained.map(obj => `${obj.count} ${obj.name}(s)`).toString()}\n`: ''}${action.items.lost.length ? ` | - ${action.items.lost.map(obj => `${obj.count} ${obj.name}(s)`).toString()}\n`: ''}`})
+                        response = await confirmation.update({
+                            embeds: [embed],
+                            components: [arow, crow],
                         });
                     }
                 }
             } catch (e) {
+                console.log(e)
                 active = false
                 await interaction.editReply({ content: 'Confirmation not received within 1 minute, cancelling', components: [] });
             }

@@ -175,7 +175,7 @@ class Player {
         }
         let action = legalActions[Math.round(Math.random() * (legalActions.length - 1))]
         let actionText = `${action.text} ${action.items.gained.length ? `+ ${action.items.gained.map(obj => `${obj.count} ${obj.name}(s)`).toString()}`: ''}${action.items.lost.length ? ` | - ${action.items.lost.map(obj => `${obj.count} ${obj.name}(s)`).toString()}`: ''}`
-        this.roundActions.push(actionText)
+        this.roundActions.push(action)
         legalActions = []
         if(action.participants > 1) {
             let others = []
@@ -238,6 +238,7 @@ class Player {
 		result.district = obj.district
 		result.index = obj.index
 		result.position = obj.position
+        result.roundActions = obj.roundActions
 		return result
 	}
     move(x, y) {
