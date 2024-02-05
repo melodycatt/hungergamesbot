@@ -65,18 +65,21 @@ class Game {
     nextround() {
         if (this.roundNo === 0) {
 			let result = []
+            let THEDEAD = []
             for (let i in this.players) {
                 let actionChance = 1
+                this.players[i].roundActions = []
                 while (Math.random() <= actionChance) {
                     result.push(this.players[i].newAction(this.players.length))
                     for(let j in result[result.length - 1][3]) {
+                        THEDEAD.push(this.players[this.players.map(obj => obj.discord.id).indexOf(j)])
                         this.players.splice(this.players.map(obj => obj.discord.id).indexOf(j), 1)
                     }
 					console.log(this.players[i].status, this.players[i].inventory)
                     actionChance *= 0.6
                 }
             }
-			return result
+			return [result, THEDEAD, this.round]
         }
 
     }
@@ -153,8 +156,8 @@ class Player {
     roundActions = [];
     constructor(name, image, game, discord) {
         this.name = name
-        this.image = image
         this.discord = discord
+        this.image = discord.avatarURL
         this.gameID = game
     }
     get items() {

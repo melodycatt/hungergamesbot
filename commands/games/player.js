@@ -96,6 +96,10 @@ module.exports = {
                     const confirmation = await response.awaitMessageComponent({ filter: collectorFilter, time: 60_000 });
                     console.log(actionI)
                     if (confirmation.customId === 'inventory') {
+                        embed = new EmbedBuilder()
+                            .setTitle(`${player.discord.username}`)
+                            .setDescription(`${player.inventory.map(obj => `${obj.name} x${obj.count}`).join('\n')}`)
+                            .setThumbnail(player.image)
                         response = await confirmation.update({
                             embeds: [embed],
                             components: [irow],

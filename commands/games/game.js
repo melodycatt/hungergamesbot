@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const {Game, Player} = require('./data/util.js');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -178,23 +178,80 @@ module.exports = {
                 await interaction.reply({embeds: [embed]})
             }
         } else if (interaction.options.getSubcommand() === "round") {
-            try{
-                console.log(JSON.parse(data[interaction.user.id]))
-                var game = Game.toGame(JSON.parse(data[interaction.user.id]))
-                console.log(game)
-                let t = game.nextround()
-                await interaction.reply(`Players: \`\`\`${JSON.stringify(game.players)}\`\`\``)
-                for (let i of t) {
-                    await interaction.channel.send(`${i[4]}: ${i[0]}`)
+            console.log(JSON.parse(data[interaction.user.id]))
+            var game = Game.toGame(JSON.parse(data[interaction.user.id]))
+            console.log(game)
+            let t = game.nextround()
+            let playerI = 0
+            const prev = new ButtonBuilder()
+                .setCustomId('prev')
+                .setLabel('Previous')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(true)
+            const next = new ButtonBuilder()
+                .setCustomId('next')
+                .setLabel('Next')
+                .setStyle(ButtonStyle.Primary)
+            const crow = new ActionRowBuilder().addComponents(prev, next)
+            const showdead = new ButtonBuilder()
+                .setCustomId('dead')
+                .setLabel('Show Dead?')
+                .setStyle(ButtonStyle.Danger)
+            console.log(t[1])
+            if(t[1].length == 0) {
+                showdead.setDisabled(true)
+            }
+            const sdrow = new ActionRowBuilder().addComponents(showdead)
+            const player = game.players[game.players.map(x => x.discord.username).indexOf(t[0][playerI][4])]
+            const embed = new EmbedBuilder()
+                .setTitle(t[2])
+                .setDescription(player.name)
+            for(let i of player.roundActions) {
+                embed.addFields({name: i.text, value: ' '})
+            }
+            let active = true
+            const collectorFilter = i => i.user.id === interaction.user.id;
+            try {
+                let response = await interaction.reply({embeds: [embed], components: [crow, sdrow]})
+                while (active) {
+                    const confirmation = await response.awaitMessageComponent({ filter: collectorFilter, time: 90_000 });
+                    if (confirmation.customId === "prev") playerI -= 1
+                    if (confirmation.customId === "next") playerI += 1
+                    const prev = new ButtonBuilder()
+                        .setCustomId('prev')
+                        .setLabel('Previous')
+                        .setStyle(ButtonStyle.Secondary)
+                    if(playerI == 0) {
+                        prev.setDisabled(true)
+                    }
+                    const next = new ButtonBuilder()
+                        .setCustomId('next')
+                        .setLabel('Next')
+                        .setStyle(ButtonStyle.Primary)
+                    if(playerI == game.players.length - 1) {
+                        next.setDisabled(true)
+                    }
+                    const crow = new ActionRowBuilder().addComponents(prev, next)
+                    const showdead = new ButtonBuilder()
+                        .setCustomId('dead')
+                        .setLabel('Show Dead?')
+                        .setStyle(ButtonStyle.Danger)
+                    if(t[1].length == 0) {
+                        showdead.setDisabled(true)
+                    }
+            
+                    const sdrow = new ActionRowBuilder().addComponents(showdead)
+                    const player = game.players[playerI]
+                    const embed = new EmbedBuilder()
+                        .setTitle(t[2])
+                        .setDescription(player.name)
+                    for(let i of player.roundActions) {
+                        embed.addFields({name: i.text, value: ' '})
+                    }
+                    response = await confirmation.update({embeds: [embed], components: [crow, sdrow]})
                 }
             } catch (e) {
-                await interaction.channel.send(e.toString())
-                if (!(e instanceof Error)) {
-                    await interaction.channel.send('triggered')
-                    e = new Error(e);
-                }
-                await interaction.reply(`//Gotcha!\n \`\`\`${e.message}\n${e.cause}\n${e.lineNumber}:${e.columnNumber}\`\`\`\nInfo: user: \`${interaction.user.id}\`\nPlayer data: \`\`\`${JSON.stringify(game.players)}\`\`\``)
-                throw e
+                console.log(e)
             }
         } else if (interaction.options.getSubcommand() === "delete") {
             if( data[interaction.user.id] ) {
