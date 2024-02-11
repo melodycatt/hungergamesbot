@@ -127,9 +127,9 @@ class Player {
             roundValidation: /.*/
         }, 
         {
-            text: 'player1 placeholder 2 (electric boogaloo)',
+            text: 'player1 placeholder 2 player2 (electric boogaloo)',
             damage: 10,
-            participants: 1,
+            participants: 2,
             items: {
                 required: [],
                 gained: [{name:"poo", count:2}],

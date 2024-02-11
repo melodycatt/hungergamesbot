@@ -32,6 +32,16 @@ module.exports = {
                     .setDescription("Custom name to join the game as")))
         .addSubcommand(subcommand =>
             subcommand
+            .setName('add')
+            .setDescription('Join a game')
+            .addUserOption(option =>
+                option.setName("host")
+                    .setDescription("The host of the game"))
+            .addStringOption(option =>
+                option.setName("customname")
+                    .setDescription("Custom name to join the game as")))
+        .addSubcommand(subcommand =>
+            subcommand
             .setName("settings")
             .setDescription("settings of your game")
             .addStringOption(option =>
@@ -262,7 +272,18 @@ module.exports = {
             } else {
                 await interaction.reply('You have no open game!')   
             }
-        } 
+        } else if (interaction.options.getSubcommand() === "add") {
+            var host = interaction.options.getUser("host") ?? interaction.user
+            var game = Game.toGame(JSON.parse(data[interaction.options.getUser("host").id]))
+            if (game.players.map(x => x.discord.username).includes(interaction.options.getString("customname"))) {
+                await interaction.reply('go away ur already in the game')
+                return
+            }
+            game.players.push(new Player(interaction.options.getString("customname"), interaction.user.avatarURL, game.owner.id, {id: Math.random() *100000, username: interaction.options.getString("customname")}))
+            data[host.id] = JSON.stringify(game)
+            fs.writeFileSync(path.join(__dirname, 'data/data.json'), JSON.stringify(data));
+            await interaction.reply('yeah its done or whatever')
+        }
 	},
 };
 
