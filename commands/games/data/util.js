@@ -142,6 +142,38 @@ class Player {
             weight: 1,
             roundValidation: /.*/
         }, 
+        {
+            text: '(Player1) tries to climb a tree and dies.',
+            damage: 100,
+            participants: 1,
+            items: {
+                required: [],
+                gained: [],
+                lost: []
+            },
+            status: {
+                hunger: 0,
+                thirst: 0
+            },
+            weight: 1,
+            roundValidation: /Day (\d+)|Night (\d+)/
+        }, 
+        {
+            text: '(Player1) hurts (Player2).',
+            damage: 10,
+            participants: 2,
+            items: {
+                required: [],
+                gained: [],
+                lost: []
+            },
+            status: {
+                hunger: 0,
+                thirst: 0
+            },
+            weight: 1,
+            roundValidation: /.*/
+        },         
     ]
     district;
     index;
